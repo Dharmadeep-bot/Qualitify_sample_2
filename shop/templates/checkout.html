@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout</title>
+  <link rel="stylesheet" href="/static/checkout.css">
+</head>
+<body>
+  <header>
+    <img src="/static/logo.png" alt="Shop logo" width="120" height="40">
+  </header>
+
+  <main>
+    <h1>Checkout</h1>
+
+    <form id="pay-form" novalidate>
+      <fieldset>
+        <legend>Payment details</legend>
+
+        <p>
+          <label for="holder-name">Name of the person paying</label>
+          <input id="holder-name" name="holder-name" type="text" autocomplete="cc-name" required
+                 aria-describedby="holder-help">
+          <span id="holder-help">As written on your payment card.</span>
+        </p>
+
+        <!-- The card fields are served by the payment provider inside these containers, so card
+             details go straight to the provider and never reach this site or its scripts. -->
+        <div id="provider-fields" aria-label="Card details, provided securely"></div>
+      </fieldset>
+
+      <button type="submit">Pay now</button>
+    </form>
+
+    <p id="pay-status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script src="/static/checkout.js" defer></script>
+</body>
+</html>
