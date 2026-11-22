@@ -11,9 +11,9 @@ from typing import Optional
 
 from flask import Flask, abort, g, jsonify, render_template, request
 
-from shop import auth, authz, payments, reports, uploads
+from shop import audit, auth, authz, cart, catalog, coupons, notifications, payments, reports, uploads, webhooks
 from shop.config import Settings
-from shop.db import Database
+from shop.db import CouponRejected, Database, OutOfStock
 
 log = logging.getLogger(__name__)
 
@@ -96,6 +96,83 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             return jsonify(error="invalid credentials"), 401
         return jsonify(session=session)
 
+    @app.get("/products")
+    def products():
+        after = request.args.get("after", default=0, type=int)
+        page, next_cursor = catalog.list_page(db, after or 0, request.args.get("size", type=int))
+        return jsonify(products=[product.as_json() for product in page], next=next_cursor)
+
+    @app.get("/products/search")
+    def search_products():
+        try:
+            found = catalog.search(db, request.args.get("q", ""))
+        except ValueError:
+            abort(400)
+        return jsonify(products=[product.as_json() for product in found])
+
+    @app.post("/checkout")
+    @authz.login_required
+    def checkout():
+        """Price the cart from our own catalogue, apply an optional coupon, reserve
+        the stock and create the order, all or nothing."""
+        data = _json_body()
+        try:
+            lines = cart.price_cart(db, cart.parse_cart(data.get("items")))
+        except ValueError:
+            abort(400)
+        code = None
+        if data.get("coupon") is not None:
+            raw = data["coupon"]
+            code = coupons.normalise(raw) if isinstance(raw, str) else None
+            if code is None:
+                return jsonify(error="that coupon cannot be used"), 422
+        items = [(line.product_id, line.quantity, line.unit_cents) for line in lines]
+        try:
+            order_id, total, percent = db.create_order_with_items(
+                g.user_id, items, code, int(time.time()), cart.apply_percent
+            )
+        except CouponRejected:
+            return jsonify(error="that coupon cannot be used"), 422
+        except OutOfStock:
+            abort(409)
+        audit.record(db, g.user_id, "order.created", order_id=order_id, total_cents=total, coupon_percent=percent)
+        return jsonify(order_id=order_id, total_cents=total), 201
+
+    @app.post("/webhooks/payments")
+    def payment_webhook():
+        body = request.get_data(cache=False)
+        if not webhooks.verify(
+            settings.webhook_secret,
+            request.headers.get("X-Timestamp", ""),
+            request.headers.get("X-Signature", ""),
+            body,
+        ):
+            abort(401)
+        return jsonify(result=webhooks.handle(db, body))
+
+    @app.post("/admin/coupons")
+    @authz.admin_required
+    def make_coupon():
+        data = _json_body()
+        try:
+            code = coupons.create(db, int(data.get("percent", 0)), int(data.get("valid_days", 0)), int(data.get("max_uses", 0)))
+        except (TypeError, ValueError):
+            abort(400)
+        audit.record(db, g.user_id, "coupon.created", percent=data.get("percent"))
+        return jsonify(code=code), 201
+
+    @app.post("/admin/stock")
+    @authz.admin_required
+    def restock():
+        data = _json_body()
+        found = db.products_by_sku([_text(data, "sku", 32)])
+        quantity = data.get("quantity")
+        if not found or isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= 100_000:
+            abort(400)
+        db.restock(found[data["sku"]]["id"], quantity)
+        audit.record(db, g.user_id, "stock.added", sku=data["sku"], quantity=quantity)
+        return jsonify(status="ok")
+
     @app.get("/orders")
     @authz.login_required
     def my_orders():
@@ -127,7 +204,12 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         if reference is None:
             return jsonify(error="the payment did not go through"), 502
         db.mark_paid(order["id"], reference)
-        return jsonify(status="paid")
+        audit.record(db, g.user_id, "order.paid", order_id=order["id"])
+        mailed = notifications.send(
+            settings.mail_url, settings.mail_key, db.email_of(g.user_id) or "",
+            "Your receipt", notifications.receipt_text(order["id"], order["total_cents"]),
+        )
+        return jsonify(status="paid", receipt_sent=mailed)
 
     @app.post("/orders/<int:order_id>/refund")
     @authz.admin_required

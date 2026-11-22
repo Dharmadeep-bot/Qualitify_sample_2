@@ -18,6 +18,9 @@ class Settings:
         self.signing_key = _required("SHOP_SIGNING_KEY")
         self.payment_url = _required("SHOP_PAYMENT_URL")
         self.payment_credential = _required("SHOP_PAYMENT_CREDENTIAL")
+        self.mail_url = _required("SHOP_MAIL_URL")
+        self.mail_key = _required("SHOP_MAIL_KEY")
+        self.webhook_secret = _required("SHOP_WEBHOOK_SECRET")
         self.database = os.environ.get("SHOP_DB", "shop.db")
         self.upload_dir = os.environ.get("SHOP_UPLOAD_DIR", "uploads")
         self.export_dir = os.environ.get("SHOP_EXPORT_DIR", "exports")
@@ -27,3 +30,7 @@ class Settings:
             raise RuntimeError("SHOP_SIGNING_KEY must be at least 32 characters")
         if not self.payment_url.startswith("https://"):
             raise RuntimeError("SHOP_PAYMENT_URL must use https")
+        if not self.mail_url.startswith("https://"):
+            raise RuntimeError("SHOP_MAIL_URL must use https")
+        if len(self.webhook_secret) < 32:
+            raise RuntimeError("SHOP_WEBHOOK_SECRET must be at least 32 characters")

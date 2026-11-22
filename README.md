@@ -14,6 +14,12 @@ shop/payments.py   amounts from our own records, provider tokens, HTTPS with a t
 shop/reports.py    one query for many users, safe CSV, safe YAML, discounts parsed not evaluated
 shop/uploads.py    allowed types, size limit, a name we choose, path kept in its folder
 shop/app.py        routes, input checks, security headers, errors that reveal nothing
+shop/catalog.py    product listing (cursor pages) and search with bounded input
+shop/cart.py       a request's cart priced from our own catalogue, quantities bounded
+shop/coupons.py    unguessable, expiring, limited-use coupon codes
+shop/webhooks.py   payment webhooks: signature, age limit, replay protection
+shop/notifications.py  receipt emails: timeout, bounded retries, no header injection
+shop/audit.py      who did what to money and access, secrets redacted
 shop/templates/    pages with escaped values and an accessible checkout form
 tests/             the security-relevant behaviour
 ```
@@ -41,6 +47,9 @@ pip install -r requirements.txt
 set SHOP_SIGNING_KEY=<at least 32 random characters>
 set SHOP_PAYMENT_URL=https://payments.example.com/charge
 set SHOP_PAYMENT_CREDENTIAL=<from your provider>
+set SHOP_MAIL_URL=https://mail.example.com/send
+set SHOP_MAIL_KEY=<from your provider>
+set SHOP_WEBHOOK_SECRET=<at least 32 random characters>
 python -m shop.app
 python -m pytest
 ```
