@@ -94,7 +94,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         session = auth.login(email, plain, db, settings)
         if session is None:
             return jsonify(error="invalid credentials"), 401
-        return jsonify(session=session)
+        return jsonify(session=session), 200
 
     @app.get("/orders")
     @authz.login_required

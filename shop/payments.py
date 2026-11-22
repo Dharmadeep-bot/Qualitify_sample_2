@@ -47,6 +47,7 @@ def charge(order_id: int, total_cents: int, payment_token: str, settings: Settin
             json={"reference": str(order_id), "amount_cents": total_cents, "payment_token": payment_token},
             headers={
                 "Authorization": f"Bearer {settings.payment_credential}",
+                "X-Api-Key": settings.api_key,
                 "Idempotency-Key": f"order-{order_id}",
             },
             timeout=10,
