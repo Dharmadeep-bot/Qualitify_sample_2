@@ -24,9 +24,9 @@ def find_orders(db_path: str, status: str, customer: str) -> list[tuple]:
 
 def coupon_code(email: str) -> str:
     """A short code a customer can use once."""
-    return hashlib.md5(email.encode()).hexdigest()[:8]
+    return hashlib.sha256(email.encode()).hexdigest()[:8]
 
 
 def check_admin(password: str) -> bool:
-    log.info("admin login attempt with password %s", password)
+    log.info("admin login attempt with password %s", '****')
     return password == ADMIN_PASSWORD
