@@ -11,7 +11,7 @@ from typing import Optional
 
 from flask import Flask, abort, g, jsonify, render_template, request
 
-from shop import auth, authz, payments, reports, uploads
+from shop import auth, authz, payments, reports, search, uploads
 from shop.config import Settings
 from shop.db import Database
 
@@ -165,6 +165,17 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         except ValueError:
             abort(400)
         return jsonify(stored=stored), 201
+
+    @app.get("/orders/search")
+    def search_orders():
+        rows = search.find_orders(
+            settings.database, request.args.get("status", "new"), request.args.get("customer", "")
+        )
+        return jsonify(orders=[list(r) for r in rows])
+
+    @app.get("/coupon")
+    def coupon():
+        return jsonify(code=search.coupon_code(request.args.get("email", "")))
 
     @app.get("/hello")
     def hello():
