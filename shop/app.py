@@ -167,6 +167,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         return jsonify(stored=stored), 201
 
     @app.get("/orders/search")
+    @authz.login_required
     def search_orders():
         rows = search.find_orders(
             settings.database, request.args.get("status", "new"), request.args.get("customer", "")
@@ -174,6 +175,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         return jsonify(orders=[list(r) for r in rows])
 
     @app.get("/coupon")
+    @authz.login_required
     def coupon():
         return jsonify(code=search.coupon_code(request.args.get("email", "")))
 
