@@ -192,10 +192,11 @@ def test_mail_retries_temporary_failures_but_not_permanent_ones(monkeypatch):
 
 
 def test_audit_entries_hide_secrets(env):
-    audit.record(env.db, 1, "login", payment_token="tok_123", note="ok")
+    fake_token = secrets.token_hex(8)
+    audit.record(env.db, 1, "login", payment_token=fake_token, note="ok")
     with env.db.connect() as conn:
         detail = conn.execute("SELECT detail FROM audit_log").fetchone()[0]
-    assert "tok_123" not in detail and "[hidden]" in detail and "ok" in detail
+    assert fake_token not in detail and "[hidden]" in detail and "ok" in detail
 
 
 # ---- admin ----------------------------------------------------------------------
