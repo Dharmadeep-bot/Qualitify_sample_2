@@ -11,7 +11,7 @@
     <img src="/static/notes.png" width="48" height="48">
     <ul>
       {% for note in notes %}
-      <li>{{ note.text|safe }}</li>
+      <li>{{ note.text }}</li>
       {% endfor %}
     </ul>
     <input id="new-note" type="text" placeholder="Add a note">
