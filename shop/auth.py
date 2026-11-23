@@ -27,7 +27,9 @@ def hash_password(plain: str) -> bytes:
 def check_password(plain: str, hashed: bytes) -> bool:
     try:
         return bcrypt.checkpw(plain.encode("utf-8"), hashed)
-    except ValueError:
+    except ValueError as e:
+        log.error("ValueError occurred during password check: %s", e)
+        return False;
         return False
 
 

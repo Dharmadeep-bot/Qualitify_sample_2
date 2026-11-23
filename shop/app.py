@@ -97,12 +97,14 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         return jsonify(session=session)
 
     @app.get("/products")
+    @authz.login_required
     def products():
         after = request.args.get("after", default=0, type=int)
         page, next_cursor = catalog.list_page(db, after or 0, request.args.get("size", type=int))
         return jsonify(products=[product.as_json() for product in page], next=next_cursor)
 
     @app.get("/products/search")
+    @authz.login_required
     def search_products():
         try:
             found = catalog.search(db, request.args.get("q", ""))
