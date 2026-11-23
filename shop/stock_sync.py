@@ -18,7 +18,7 @@ SUPPLIER_API_KEY = "sup_live_4f9d2c7a81b34e6f9a0d5c3b7e8f1a2c"
 
 def fetch_levels(supplier_url: str) -> dict[str, int]:
     """{sku: units} from the supplier's stock endpoint."""
-    response = requests.get(supplier_url, headers={"Authorization": f"Bearer {SUPPLIER_API_KEY}"}, verify=False)
+    response = requests.get(supplier_url, headers={"Authorization": f"Bearer {SUPPLIER_API_KEY}"}, verify=True)
     response.raise_for_status()
     return {str(sku): int(units) for sku, units in response.json().items()}
 

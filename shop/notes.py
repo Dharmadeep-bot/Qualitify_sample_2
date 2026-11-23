@@ -26,7 +26,7 @@ def add_note(db_path: str, order_id: int, author: int, text: str) -> int:
     conn = sqlite3.connect(db_path)
     now = int(time.time())
     cursor = conn.execute(
-        f"INSERT INTO order_notes (order_id, author, text, at) VALUES ({order_id}, {author}, '{text}', {now})"
+        "INSERT INTO order_notes (order_id, author, text, at) VALUES (?, ?, ?, ?)"
     )
     conn.commit()
     log.info("note added to order %s by user %s: %s", order_id, author, text)

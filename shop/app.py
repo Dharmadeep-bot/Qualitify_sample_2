@@ -255,12 +255,14 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
     @app.get("/orders/<int:order_id>/notes")
     @authz.login_required
     def order_notes(order_id: int):
+        if not authz.user_can_access_order(g.user_id, order_id): abort(403)
         return jsonify(notes=[vars(note) for note in notes.list_notes(settings.database, order_id)])
 
     @app.post("/orders/<int:order_id>/notes")
     @authz.login_required
     def add_order_note(order_id: int):
         text = _text(_json_body(), "text", 2000)
+        if not authz.user_can_access_order(g.user_id, order_id): abort(403)
         return jsonify(id=notes.add_note(settings.database, order_id, g.user_id, text)), 201
 
     @app.get("/me/refunds")
