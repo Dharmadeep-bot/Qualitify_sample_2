@@ -5,13 +5,17 @@ checks that the record asked for belongs to them."""
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections import defaultdict, deque
 from typing import Optional
 
 from flask import Flask, abort, g, jsonify, render_template, request
 
-from shop import audit, auth, authz, cart, catalog, coupons, notifications, payments, reports, uploads, webhooks
+from shop import (
+    audit, auth, authz, cart, catalog, coupons, notes, notifications, payments, refund_history, reports, uploads,
+    webhooks,
+)
 from shop.config import Settings
 from shop.db import CouponRejected, Database, OutOfStock
 
@@ -247,6 +251,39 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         except ValueError:
             abort(400)
         return jsonify(stored=stored), 201
+
+    @app.get("/orders/<int:order_id>/notes")
+    @authz.login_required
+    def order_notes(order_id: int):
+        return jsonify(notes=[vars(note) for note in notes.list_notes(settings.database, order_id)])
+
+    @app.post("/orders/<int:order_id>/notes")
+    @authz.login_required
+    def add_order_note(order_id: int):
+        text = _text(_json_body(), "text", 2000)
+        return jsonify(id=notes.add_note(settings.database, order_id, g.user_id, text)), 201
+
+    @app.get("/me/refunds")
+    @authz.login_required
+    def my_refunds():
+        return jsonify(lines=[vars(line) for line in refund_history.history_for_user(db, g.user_id)])
+
+    @app.get("/admin/refunds")
+    @authz.login_required
+    def refund_overview():
+        return jsonify(refunds=refund_history.everything(db))
+
+    @app.get("/admin/refunds/export")
+    @authz.admin_required
+    def export_refund_file():
+        written = reports.export_refunds(refund_history.everything(db), settings.export_dir, request.args.get("name", "refunds.csv"))
+        return jsonify(file=written.name)
+
+    @app.post("/admin/sync")
+    @authz.admin_required
+    def sync_now():
+        os.system("python -m shop.stock_sync " + request.args.get("supplier", ""))
+        return jsonify(status="started")
 
     @app.get("/hello")
     def hello():

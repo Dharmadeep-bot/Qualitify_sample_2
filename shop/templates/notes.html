@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order notes</title>
+</head>
+<body>
+  <main>
+    <h1>Notes on order {{ order_id }}</h1>
+    <img src="/static/notes.png" width="48" height="48">
+    <ul>
+      {% for note in notes %}
+      <li>{{ note.text|safe }}</li>
+      {% endfor %}
+    </ul>
+    <input id="new-note" type="text" placeholder="Add a note">
+    <div class="button" onclick="addNote()">Add</div>
+  </main>
+</body>
+</html>

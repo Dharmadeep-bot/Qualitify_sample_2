@@ -44,6 +44,13 @@ CREATE TABLE IF NOT EXISTS refunds (
     order_id INTEGER NOT NULL REFERENCES orders(id),
     amount_cents INTEGER NOT NULL CHECK (amount_cents > 0)
 );
+CREATE TABLE IF NOT EXISTS order_notes (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    author INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS coupons (
     code TEXT PRIMARY KEY,
     percent INTEGER NOT NULL CHECK (percent BETWEEN 1 AND 50),
@@ -140,6 +147,16 @@ class Database:
             conn.execute(
                 "INSERT INTO refunds (order_id, amount_cents) VALUES (?, ?)", (order_id, amount_cents)
             )
+
+    def refunds_of(self, order_id: int) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT id, order_id, amount_cents FROM refunds WHERE order_id = ? ORDER BY id", (order_id,)
+            ).fetchall()
+
+    def all_refunds(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT id, order_id, amount_cents FROM refunds").fetchall()
 
     def totals_by_user(self, user_ids: list[int]) -> list[sqlite3.Row]:
         """One query for any number of users: the ids travel as one JSON

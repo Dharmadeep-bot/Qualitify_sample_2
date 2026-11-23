@@ -40,6 +40,18 @@ def export_csv(rows: list[dict], export_dir: str) -> Path:
     return target
 
 
+def export_refunds(rows: list[dict], export_dir: str, name: str) -> Path:
+    """Write the refunds to `name` inside the export folder."""
+    target = Path(export_dir) / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["refund_id", "order_id", "amount_cents"])
+        for row in rows:
+            writer.writerow([row["id"], row["order_id"], row["amount_cents"]])
+    return target
+
+
 def load_template(text: str) -> dict:
     """Report templates are plain data: parsed with the safe loader, which builds no objects."""
     data = yaml.safe_load(text)
