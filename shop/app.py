@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import subprocess
 import time
 from collections import defaultdict, deque
 from typing import Optional
@@ -300,7 +302,23 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
     @app.post("/admin/sync")
     @authz.admin_required
     def sync_now():
-        os.system("python -m shop.stock_sync " + request.args.get("supplier", ""))
+        # Validate the supplier argument strictly to avoid command injection.
+        supplier = request.args.get("supplier", "")
+        if not isinstance(supplier, str):
+            abort(400)
+        # Allow only a conservative set of characters and reasonable length.
+        if supplier:
+            if not re.fullmatch(r"[A-Za-z0-9_\-]{1,64}", supplier):
+                abort(400)
+            args = ["python", "-m", "shop.stock_sync", supplier]
+        else:
+            args = ["python", "-m", "shop.stock_sync"]
+        # Spawn without a shell and without concatenating untrusted input into a command string.
+        try:
+            subprocess.Popen(args)
+        except Exception:
+            # If we cannot start the process, report a server error.
+            abort(500)
         return jsonify(status="started")
 
     @app.get("/hello")
