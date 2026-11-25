@@ -271,7 +271,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         return jsonify(lines=[vars(line) for line in refund_history.history_for_user(db, g.user_id)])
 
     @app.get("/admin/refunds")
-    @authz.login_required
+    @authz.admin_required
     def refund_overview():
         return jsonify(refunds=refund_history.everything(db))
 

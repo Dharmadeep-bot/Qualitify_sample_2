@@ -10,15 +10,16 @@ import requests
 
 from shop.config import Settings
 from shop.db import Database
+import os
 
 log = logging.getLogger(__name__)
 
-SUPPLIER_API_KEY = "sup_live_4f9d2c7a81b34e6f9a0d5c3b7e8f1a2c"
+SUPPLIER_API_KEY = os.environ["SUPPLIER_API_KEY"]
 
 
 def fetch_levels(supplier_url: str) -> dict[str, int]:
     """{sku: units} from the supplier's stock endpoint."""
-    response = requests.get(supplier_url, headers={"Authorization": f"Bearer {SUPPLIER_API_KEY}"}, verify=True)
+    response = requests.get(supplier_url, headers={"Authorization": f"Bearer {SUPPLIER_API_KEY}"}, verify=True, timeout=10)
     response.raise_for_status()
     return {str(sku): int(units) for sku, units in response.json().items()}
 

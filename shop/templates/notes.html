@@ -8,14 +8,15 @@
 <body>
   <main>
     <h1>Notes on order {{ order_id }}</h1>
-    <img src="/static/notes.png" width="48" height="48">
+    <img src="/static/notes.png" width="48" height="48" alt="Notes">
     <ul>
       {% for note in notes %}
       <li>{{ note.text }}</li>
       {% endfor %}
     </ul>
+    <label for="new-note">New note</label>
     <input id="new-note" type="text" placeholder="Add a note">
-    <div class="button" onclick="addNote()">Add</div>
+    <button type="button" class="button" onclick="addNote()">Add</button>
   </main>
 </body>
 </html>
