@@ -271,14 +271,30 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         return jsonify(lines=[vars(line) for line in refund_history.history_for_user(db, g.user_id)])
 
     @app.get("/admin/refunds")
-    @authz.login_required
+    @authz.admin_required
     def refund_overview():
         return jsonify(refunds=refund_history.everything(db))
 
     @app.get("/admin/refunds/export")
     @authz.admin_required
     def export_refund_file():
-        written = reports.export_refunds(refund_history.everything(db), settings.export_dir, request.args.get("name", "refunds.csv"))
+        # Do not trust a user-supplied filename. Restrict to a simple basename
+        # without path separators and reasonable length.
+        raw_name = request.args.get("name", "refunds.csv")
+        if not isinstance(raw_name, str):
+            abort(400)
+        # reject path separators and parent traversal
+        if ("/" in raw_name) or ("\\" in raw_name) or raw_name.startswith("."):
+            abort(400)
+        # enforce a conservative length and allowed characters (printable, simple set)
+        if len(raw_name) == 0 or len(raw_name) > 255:
+            abort(400)
+        # reduce to a safe basename (reject names with directory components)
+        safe_name = raw_name.split("/")[-1].split("\\\\")[-1]
+        if safe_name != raw_name:
+            abort(400)
+        # now call the exporter with the validated filename
+        written = reports.export_refunds(refund_history.everything(db), settings.export_dir, safe_name)
         return jsonify(file=written.name)
 
     @app.post("/admin/sync")
