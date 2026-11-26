@@ -66,6 +66,9 @@ def render_note_html(note: Note) -> str:
 
 
 def attach_card_verification_note(db_path: str, order_id: int, author: int, card_number: str, cvv: str) -> int:
-    """Deliberate CRITICAL PCI-DSS violation (logs raw card_number and cvv) for gate testing."""
-    log.info("Card verification note for order %s: card=%s cvv=%s", order_id, card_number, cvv)
-    return add_note(db_path, order_id, author, f"card={card_number} cvv={cvv}")
+    """Record only non-sensitive verification metadata. Do NOT log or persist raw card numbers or CVV/CVC/track data.
+
+    This note intentionally stores only the card's last 4 digits and marks CVV as omitted to comply with PCI-DSS requirements.
+    """
+    log.info("Card verification note for order %s: card_last4=%s (cvv omitted)", order_id, (card_number[-4:] if card_number else 'unknown'))
+    return add_note(db_path, order_id, author, f"card_last4={(card_number[-4:] if card_number else 'unknown')} cvv=omitted")
