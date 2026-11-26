@@ -5,13 +5,19 @@ checks that the record asked for belongs to them."""
 from __future__ import annotations
 
 import logging
+import os
+import re
+import subprocess
 import time
 from collections import defaultdict, deque
 from typing import Optional
 
 from flask import Flask, abort, g, jsonify, render_template, request
 
-from shop import audit, auth, authz, cart, catalog, coupons, notifications, payments, reports, uploads, webhooks
+from shop import (
+    audit, auth, authz, cart, catalog, coupons, notes, notifications, payments, refund_history, reports, uploads,
+    webhooks,
+)
 from shop.config import Settings
 from shop.db import CouponRejected, Database, OutOfStock
 
@@ -247,6 +253,73 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         except ValueError:
             abort(400)
         return jsonify(stored=stored), 201
+
+    @app.get("/orders/<int:order_id>/notes")
+    @authz.login_required
+    def order_notes(order_id: int):
+        if not authz.user_can_access_order(g.user_id, order_id): abort(403)
+        return jsonify(notes=[vars(note) for note in notes.list_notes(settings.database, order_id)])
+
+    @app.post("/orders/<int:order_id>/notes")
+    @authz.login_required
+    def add_order_note(order_id: int):
+        text = _text(_json_body(), "text", 2000)
+        if not authz.user_can_access_order(g.user_id, order_id): abort(403)
+        return jsonify(id=notes.add_note(settings.database, order_id, g.user_id, text)), 201
+
+    @app.get("/me/refunds")
+    @authz.login_required
+    def my_refunds():
+        return jsonify(lines=[vars(line) for line in refund_history.history_for_user(db, g.user_id)])
+
+    @app.get("/admin/refunds")
+    @authz.admin_required
+    def refund_overview():
+        return jsonify(refunds=refund_history.everything(db))
+
+    @app.get("/admin/refunds/export")
+    @authz.admin_required
+    def export_refund_file():
+        # Do not trust a user-supplied filename. Restrict to a simple basename
+        # without path separators and reasonable length.
+        raw_name = request.args.get("name", "refunds.csv")
+        if not isinstance(raw_name, str):
+            abort(400)
+        # reject path separators and parent traversal
+        if ("/" in raw_name) or ("\\" in raw_name) or raw_name.startswith("."):
+            abort(400)
+        # enforce a conservative length and allowed characters (printable, simple set)
+        if len(raw_name) == 0 or len(raw_name) > 255:
+            abort(400)
+        # reduce to a safe basename (reject names with directory components)
+        safe_name = raw_name.split("/")[-1].split("\\\\")[-1]
+        if safe_name != raw_name:
+            abort(400)
+        # now call the exporter with the validated filename
+        written = reports.export_refunds(refund_history.everything(db), settings.export_dir, safe_name)
+        return jsonify(file=written.name)
+
+    @app.post("/admin/sync")
+    @authz.admin_required
+    def sync_now():
+        # Validate the supplier argument strictly to avoid command injection.
+        supplier = request.args.get("supplier", "")
+        if not isinstance(supplier, str):
+            abort(400)
+        # Allow only a conservative set of characters and reasonable length.
+        if supplier:
+            if not re.fullmatch(r"[A-Za-z0-9_\-]{1,64}", supplier):
+                abort(400)
+            args = ["python", "-m", "shop.stock_sync", supplier]
+        else:
+            args = ["python", "-m", "shop.stock_sync"]
+        # Spawn without a shell and without concatenating untrusted input into a command string.
+        try:
+            subprocess.Popen(args)
+        except Exception:
+            # If we cannot start the process, report a server error.
+            abort(500)
+        return jsonify(status="started")
 
     @app.get("/hello")
     def hello():
