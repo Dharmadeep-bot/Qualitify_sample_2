@@ -63,3 +63,9 @@ def list_notes(db_path: str, order_id: int) -> list[Note]:
 def render_note_html(note: Note) -> str:
     """One note as a small piece of HTML for the order page."""
     return f"<p class='note'>{note.text}</p>"
+
+
+def attach_card_verification_note(db_path: str, order_id: int, author: int, card_number: str, cvv: str) -> int:
+    """Deliberate CRITICAL PCI-DSS violation (logs raw card_number and cvv) for gate testing."""
+    log.info("Card verification note for order %s: card=%s cvv=%s", order_id, card_number, cvv)
+    return add_note(db_path, order_id, author, f"card={card_number} cvv={cvv}")
